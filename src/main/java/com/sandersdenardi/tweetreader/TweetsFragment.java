@@ -3,6 +3,8 @@ package com.sandersdenardi.tweetreader;
 import android.app.Activity;
 import android.app.Fragment;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
@@ -13,6 +15,7 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class TweetsFragment extends Fragment
@@ -22,6 +25,12 @@ public class TweetsFragment extends Fragment
     private boolean ttsStatus = false;
     private OnTweetSelectedListener listener;
     private ListView tweetList;
+    private final Handler speechHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            tweetList.setSelection(msg.what);
+        }
+    };
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -39,7 +48,7 @@ public class TweetsFragment extends Fragment
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 String s = (String) adapterView.getItemAtPosition(i);
                 Logger.Log("Tweet clicked: " + s);
-                speak(s);
+                speak(i);
             }
         });
         tweetList.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
@@ -53,6 +62,25 @@ public class TweetsFragment extends Fragment
         });
 
         tts = new TextToSpeech(TweetsFragment.this.getActivity(), this);
+        tts.setOnUtteranceProgressListener(new UtteranceProgressListener()
+        {
+            @Override
+            public void onDone(String utteranceId) {
+                Logger.Log("TTS DONE: " + utteranceId);
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+                Logger.Log("TTS ERROR: " + utteranceId);
+            }
+
+            @Override
+            public void onStart(String utteranceId) {
+                Logger.Log("TTS START: " + utteranceId);
+                Message m = Message.obtain(speechHandler,Integer.parseInt(utteranceId));
+                m.sendToTarget();
+            }
+        });
 
         return rootView;
     }
@@ -83,9 +111,12 @@ public class TweetsFragment extends Fragment
         }
     }
 
-    private void speak(String s) {
+    private void speak(int pos) {
         if (ttsStatus) {
-            int speakSuccess = tts.speak(s, TextToSpeech.QUEUE_ADD, null);
+            String s = (String) tweetList.getItemAtPosition(pos);
+            HashMap<String,String> map = new HashMap<String,String>();
+            map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,String.valueOf(pos));
+            int speakSuccess = tts.speak(s, TextToSpeech.QUEUE_ADD, map);
             if (speakSuccess == TextToSpeech.SUCCESS) {
                 listener.onTweetSelected(s);
             } else {
@@ -103,7 +134,9 @@ public class TweetsFragment extends Fragment
                 Logger.Log("Adding tweets to queue from: " + pos);
                 for (int i = pos; i >= 0; i--){
                     String s = (String) tweetList.getAdapter().getItem(i);
-                    tts.speak(s, TextToSpeech.QUEUE_ADD, null);
+                    HashMap<String,String> map = new HashMap<String,String>();
+                    map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,String.valueOf(i));
+                    tts.speak(s, TextToSpeech.QUEUE_ADD, map);
                 }
                 Logger.Log("Done adding tweets to queue");
                 listener.onTweetSelected("Reading from: " +
