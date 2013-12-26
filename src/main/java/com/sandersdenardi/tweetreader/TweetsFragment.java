@@ -7,7 +7,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -140,7 +139,7 @@ public class TweetsFragment extends Fragment
                 }
                 Logger.Log("Done adding tweets to queue");
                 listener.onTweetSelected("Reading from: " +
-                    (String) tweetList.getAdapter().getItem(pos));
+                    tweetList.getAdapter().getItem(pos));
             } else {
                 Logger.Log("Couldn't stop speaking");
             }
